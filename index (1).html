@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Instagram Clone</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { background: #000; color: #fff; font-size: 16px; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: #000; border-bottom: 1px solid #262626;
+    padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+ .logo { font-size: 24px; font-weight: 700; font-family: 'Segoe UI', cursive; }
+ .header-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+
+ .container { max-width: 600px; margin: 0 auto; padding-bottom: 80px; }
+
+ .post { border-bottom: 1px solid #262626; margin-bottom: 16px; }
+ .post-header { display: flex; align-items: center; padding: 12px 16px; gap: 12px; }
+ .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+ .username { font-weight: 600; font-size: 16px; }
+
+ .post-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: #262626; }
+
+ .post-actions { padding: 12px 16px; display: flex; gap: 16px; }
+ .action-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+ .action-btn.liked { color: #ed4956; }
+
+ .post-info { padding: 0 16px 12px; }
+ .likes { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+ .caption { font-size: 16px; line-height: 1.4; }
+ .caption.username { margin-right: 6px; }
+ .comments { color: #a8a8a8; font-size: 15px; margin-top: 4px; cursor: pointer; }
+
+ .comment-list { padding: 0 16px 12px; }
+ .comment { font-size: 15px; margin-bottom: 4px; }
+ .comment.username { margin-right: 6px; }
+
+ .add-comment { display: flex; padding: 12px 16px; border-top: 1px solid #262626; gap: 8px; }
+ .add-comment input { flex: 1; background: none; border: none; color: white; font-size: 16px; }
+ .add-comment input:focus { outline: none; }
+ .add-comment button { background: none; border: none; color: #0095f6; font-weight: 600; font-size: 16px; cursor: pointer; }
+ .add-comment button:disabled { color: #00376b; }
+
+ .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #000; border-top: 1px solid #262626;
+    display: flex; justify-content: space-around; padding: 12px 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+ .nav-btn { background: none; border: none; color: white; font-size: 28px; cursor: pointer; }
+
+ .modal {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+ .modal.active { display: flex; }
+ .modal-content {
+    background: #262626; border-radius: 12px; width: 100%; max-width: 500px;
+    max-height: 90vh; overflow-y: auto;
+  }
+ .modal-header { padding: 16px; border-bottom: 1px solid #363636; text-align: center; font-weight: 600; font-size: 18px; position: relative; }
+ .modal-close { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+ .modal-body { padding: 16px; }
+ .modal input,.modal textarea {
+    width: 100%; padding: 12px; margin-bottom: 12px;
+    background: #363636; border: 1px solid #363636; border-radius: 6px;
+    color: white; font-size: 16px;
+  }
+ .modal textarea { resize: vertical; min-height: 80px; }
+ .modal button {
+    width: 100%; padding: 12px; background: #0095f6; border: none;
+    border-radius: 8px; color: white; font-weight: 600; font-size: 16px; cursor: pointer;
+  }
+ .modal button:disabled { background: #00376b; }
+
+ .empty { text-align: center; padding: 60px 20px; color: #a8a8a8; font-size: 16px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">Instagram</div>
+    <button class="header-btn" onclick="openModal('postModal')">+</button>
+  </header>
+
+  <div class="container" id="feed"></div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="showPage('feed')">🏠</button>
+    <button class="nav-btn" onclick="showPage('search')">🔍</button>
+    <button class="nav-btn" onclick="openModal('postModal')">➕</button>
+    <button class="nav-btn" onclick="showPage('profile')">👤</button>
+  </div>
+
+  <div class="modal" id="postModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        Create Post
+        <button class="modal-close" onclick="closeModal('postModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="file" id="imageFile" accept="image/*" onchange="handleFileSelect()">
+        <input type="text" id="imageUrl" placeholder="Or paste image URL" oninput="document.getElementById('imageFile').value=''">
+        <textarea id="caption" placeholder="Write a caption..."></textarea>
+        <button id="shareBtn" onclick="createPost()" disabled>Share</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const currentUser = "you";
+let posts = JSON.parse(localStorage.getItem('ig-posts') || JSON.stringify([
+  {
+    id: 1,
+    user: "demo_user",
+    avatar: "",
+    image: "https://picsum.photos/600/600?random=1",
+    caption: "This is a demo post. Create your first post with the + button!",
+    likes: 24,
+    liked: false,
+    comments: [
+      { user: "friend", text: "Looks great!" },
+      { user: "you", text: "Thanks!" }
+    ],
+    time: "2h ago"
+  }
+]));
+let selectedImage = "";
+
+function savePosts() {
+  localStorage.setItem('ig-posts', JSON.stringify(posts));
+}
+
+function handleFileSelect() {
+  const file = document.getElementById('imageFile').files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    selectedImage = e.target.result;
+    document.getElementById('imageUrl').value = "";
+    checkForm();
+  };
+  reader.readAsDataURL(file);
+}
+
+function checkForm() {
+  const hasImage = selectedImage || document.getElementById('imageUrl').value.trim();
+  document.getElementById('shareBtn').disabled =!hasImage;
+}
+
+document.getElementById('imageUrl').addEventListener('input', checkForm);
+
+function createPost() {
+  const image = selectedImage || document.getElementById('imageUrl').value.trim();
+  const caption = document.getElementById('caption').value.trim();
+  if (!image) return;
+
+  posts.unshift({
+    id: Date.now(),
+    user: currentUser,
+    avatar: "",
+    image: image,
+    caption: caption,
+    likes: 0,
+    liked: false,
+    comments: [],
+    time: "now"
+  });
+
+  savePosts();
+  closeModal('postModal');
+  selectedImage = "";
+  document.getElementById('imageFile').value = "";
+  document.getElementById('imageUrl').value = "";
+  document.getElementById('caption').value = "";
+  renderFeed();
+}
+
+function toggleLike(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+
+  post.liked =!post.liked;
+  post.likes += post.liked? 1 : -1;
+  savePosts();
+  renderFeed();
+}
+
+function addComment(postId) {
+  const input = document.getElementById(`comment-${postId}`);
+  const text = input.value.trim();
+  if (!text) return;
+
+  const post = posts.find(p => p.id === postId);
+  post.comments.push({ user: currentUser, text });
+  input.value = "";
+  savePosts();
+  renderFeed();
+}
+
+function deletePost(postId) {
+  if (!confirm("Delete this post?")) return;
+  posts = posts.filter(p => p.id!== postId);
+  savePosts();
+  renderFeed();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function renderFeed() {
+  const feed = document.getElementById('feed');
+
+  if (posts.length === 0) {
+    feed.innerHTML = `<div class="empty">No posts yet. Tap + to create your first post.</div>`;
+    return;
+  }
+
+  feed.innerHTML = posts.map(post => `
+    <div class="post">
+      <div class="post-header">
+        <div class="avatar"></div>
+        <div class="username">${post.user}</div>
+        ${post.user === currentUser? `<button style="margin-left:auto;background:none;border:none;color:white;font-size:20px;cursor:pointer;" onclick="deletePost(${post.id})">⋯</button>` : ''}
+      </div>
+
+      <img src="${post.image}" class="post-img" alt="post">
+
+      <div class="post-actions">
+        <button class="action-btn ${post.liked? 'liked' : ''}" onclick="toggleLike(${post.id})">
+          ${post.liked? '❤️' : '🤍'}
+        </button>
+        <button class="action-btn" onclick="document.getElementById('comment-${post.id}').focus()">💬</button>
+      </div>
+
+      <div class="post-info">
+        <div class="likes">${post.likes} likes</div>
+        <div class="caption">
+          <span class="username">${post.user}</span>
+          ${post.caption}
+        </div>
+        <div class="comments" onclick="document.getElementById('comment-${post.id}').focus()">
+          ${post.comments.length > 0? `View all ${post.comments.length} comments` : ''}
+        </div>
+      </div>
+
+      <div class="comment-list">
+        ${post.comments.map(c => `
+          <div class="comment">
+            <span class="username">${c.user}</span>${c.text}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="add-comment">
+        <input type="text" id="comment-${post.id}" placeholder="Add a comment...">
+        <button onclick="addComment(${post.id})">Post</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showPage(page) {
+  if (page === 'feed') renderFeed();
+  if (page === 'search') {
+    document.getElementById('feed').innerHTML = `<div class="empty">Search coming soon</div>`;
+  }
+  if (page === 'profile') {
+    document.getElementById('feed').innerHTML = `<div class="empty">Profile: ${currentUser}</div>`;
+  }
+}
+
+// Init
+renderFeed();
+</script>
+</body>
+</html>
